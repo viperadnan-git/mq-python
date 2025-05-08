@@ -1,0 +1,408 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}MQ Dashboard - {{ store_name }}{% endblock %}
+
+{% block content %}
+<div class="col-12">
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Job Store: {{ store_name }}</h5>
+            <div>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addJobModal">
+                    <i class="fas fa-plus"></i> Add Job
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <!-- Store capacity info -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card {% if capacity_stats.is_full %}bg-danger text-white{% else %}bg-light{% endif %}">
+                        <div class="card-body">
+                            <h6 class="card-title">Capacity</h6>
+                            <p class="card-text">
+                                {{ capacity_stats.current_jobs }} / 
+                                {% if capacity_stats.max_capacity %}
+                                    {{ capacity_stats.max_capacity }}
+                                {% else %}
+                                    Unlimited
+                                {% endif %}
+                            </p>
+                            {% if capacity_stats.max_capacity %}
+                                <div class="progress">
+                                    {% set capacity_percentage = (capacity_stats.current_jobs / capacity_stats.max_capacity) * 100 %}
+                                    {% if capacity_percentage > 90 %}
+                                        {% set bar_class = "bg-danger" %}
+                                    {% elif capacity_percentage > 70 %}
+                                        {% set bar_class = "bg-warning" %}
+                                    {% else %}
+                                        {% set bar_class = "bg-success" %}
+                                    {% endif %}
+                                    <div class="progress-bar {{ bar_class }}" role="progressbar" style="width: {{ capacity_percentage }}%;" aria-valuenow="{{ capacity_stats.current_jobs }}" aria-valuemin="0" aria-valuemax="{{ capacity_stats.max_capacity }}"></div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Status counts -->
+                <div class="col-md-9">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card bg-warning text-dark mb-3">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">{{ status_counts.pending }}</h5>
+                                    <p class="card-text">
+                                        <a href="/dashboard/stores/{{ store_name }}?status=PENDING" class="text-dark stretched-link">Pending</a>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-primary text-white mb-3">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">{{ status_counts.processing }}</h5>
+                                    <p class="card-text">
+                                        <a href="/dashboard/stores/{{ store_name }}?status=PROCESSING" class="text-white stretched-link">Processing</a>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-success text-white mb-3">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">{{ status_counts.completed }}</h5>
+                                    <p class="card-text">
+                                        <a href="/dashboard/stores/{{ store_name }}?status=COMPLETED" class="text-white stretched-link">Completed</a>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-danger text-white mb-3">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">{{ status_counts.failed }}</h5>
+                                    <p class="card-text">
+                                        <a href="/dashboard/stores/{{ store_name }}?status=FAILED" class="text-white stretched-link">Failed</a>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Search and filters -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <form method="GET" action="/dashboard/stores/{{ store_name }}" class="mb-3">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-2">
+                                <label for="status" class="form-label">Status</label>
+                                <select name="status" id="status" class="form-select">
+                                    <option value="">All Statuses</option>
+                                    {% for status in statuses %}
+                                        <option value="{{ status }}" {% if status_filter == status %}selected{% endif %}>
+                                            {{ status }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <label for="search_field" class="form-label">Search Field</label>
+                                <select name="search_field" id="search_field" class="form-select">
+                                    <option value="">Select Field</option>
+                                    {% for field in search_fields %}
+                                        <option value="{{ field.value }}" {% if search_field == field.value %}selected{% endif %}>
+                                            {{ field.label }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-3">
+                                <label for="search_query" class="form-label">
+                                    Search Query
+                                    <span class="text-muted" id="payload-hint" style="display: none;">
+                                        (Use JSON for payload searches)
+                                    </span>
+                                </label>
+                                <input type="text" name="search_query" id="search_query" class="form-control" value="{{ search_query or '' }}">
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <label for="sort_by" class="form-label">Sort By</label>
+                                <select name="sort_by" id="sort_by" class="form-select">
+                                    <option value="">Default (ID)</option>
+                                    {% for field in sort_fields %}
+                                        <option value="{{ field.value }}" {% if sort_by == field.value %}selected{% endif %}>
+                                            {{ field.label }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <label for="sort_order" class="form-label">Sort Order</label>
+                                <select name="sort_order" id="sort_order" class="form-select">
+                                    <option value="desc" {% if sort_order == 'desc' or not sort_order %}selected{% endif %}>Descending</option>
+                                    <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>Ascending</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-1 d-flex align-items-center">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-search"></i> Search
+                                </button>
+                            </div>
+                        </div>
+                        
+                        {% if status_filter or search_field or search_query or sort_by or sort_order != 'desc' %}
+                            <div class="mt-2">
+                                <a href="/dashboard/stores/{{ store_name }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times"></i> Clear Filters
+                                </a>
+                            </div>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Jobs table -->
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th style="width: 30px;">
+                                <input type="checkbox" id="selectAll" class="form-check-input">
+                            </th>
+                            <th>ID</th>
+                            <th>Status</th>
+                            <th>Priority</th>
+                            <th>Next Run</th>
+                            <th>Payload</th>
+                            <th style="width: 150px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if jobs %}
+                            {% for job in jobs %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" name="job_ids" value="{{ job._id }}" class="form-check-input job-checkbox" form="bulkActionForm">
+                                    </td>
+                                    <td>
+                                        <a href="/dashboard/jobs/{{ job._id }}" class="text-decoration-none">
+                                            {{ job._id }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="badge rounded-pill job-status-{{ job.status.lower() }}">
+                                            {{ job.status }}
+                                        </span>
+                                    </td>
+                                    <td>{{ job.priority }}</td>
+                                    <td>
+                                        {% if job.next_run_at %}
+                                            {{ job.next_run_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div style="max-height: 80px; overflow-y: auto;">
+                                            <code>{{ job.payload | string | truncate(80) }}</code>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-2">
+                                            <!-- View button as a separate button -->
+                                            <a href="/dashboard/jobs/{{ job._id }}" class="btn btn-sm btn-info text-white" data-bs-toggle="tooltip" title="View">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            
+                                            <!-- Other actions as a button group -->
+                                            <form method="POST" action="/dashboard/jobs/{{ job._id }}/action" class="d-inline">
+                                                <input type="hidden" name="store_name" value="{{ store_name }}">
+                                                <div class="btn-group btn-group-sm">
+                                                    <button type="submit" name="action" value="run" class="btn btn-primary" data-bs-toggle="tooltip" title="Run Now">
+                                                        <i class="fas fa-play"></i>
+                                                    </button>
+                                                    
+                                                    <button type="submit" name="action" value="retry" class="btn btn-warning" data-bs-toggle="tooltip" title="Retry">
+                                                        <i class="fas fa-redo"></i>
+                                                    </button>
+                                                    
+                                                    <button type="submit" name="action" value="delete" class="btn btn-danger" data-bs-toggle="tooltip" title="Delete"
+                                                            onclick="return confirm('Are you sure you want to delete this job?');">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-3">No jobs found</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Bulk actions in a separate form -->
+            {% if jobs %}
+                <div class="d-flex justify-content-between mb-3">
+                    <form id="bulkActionForm" method="POST" action="/dashboard/jobs/bulk-action">
+                        <input type="hidden" name="store_name" value="{{ store_name }}">
+                        <div class="btn-group">
+                            <select name="action" class="form-select me-2" style="max-width: 150px;" required>
+                                <option value="">Bulk Action</option>
+                                <option value="run">Run Now</option>
+                                <option value="retry">Retry</option>
+                                <option value="delete">Delete</option>
+                            </select>
+                            <button type="submit" class="btn btn-primary" id="bulkActionButton" disabled>Apply</button>
+                        </div>
+                    </form>
+                    
+                    <div>
+                        <span class="text-muted me-2">
+                            {{ total }} total jobs
+                        </span>
+                        
+                        <!-- Pagination with correct syntax -->
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination">
+                                <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                                    <a class="page-link" href="/dashboard/stores/{{ store_name }}?page={{ page - 1 }}
+                                        {% if status_filter %}&status={{ status_filter }}{% endif %}
+                                        {% if search_field %}&search_field={{ search_field }}{% endif %}
+                                        {% if search_query %}&search_query={{ search_query }}{% endif %}
+                                        {% if sort_by %}&sort_by={{ sort_by }}{% endif %}
+                                        {% if sort_order %}&sort_order={{ sort_order }}{% endif %}">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </a>
+                                </li>
+                                
+                                {% for p in range([page - 2, 1] | max, [page + 3, total_pages + 1] | min) %}
+                                    <li class="page-item {% if p == page %}active{% endif %}">
+                                        <a class="page-link" href="/dashboard/stores/{{ store_name }}?page={{ p }}
+                                            {% if status_filter %}&status={{ status_filter }}{% endif %}
+                                            {% if search_field %}&search_field={{ search_field }}{% endif %}
+                                            {% if search_query %}&search_query={{ search_query }}{% endif %}
+                                            {% if sort_by %}&sort_by={{ sort_by }}{% endif %}
+                                            {% if sort_order %}&sort_order={{ sort_order }}{% endif %}">
+                                            {{ p }}
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                                
+                                <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                                    <a class="page-link" href="/dashboard/stores/{{ store_name }}?page={{ page + 1 }}
+                                        {% if status_filter %}&status={{ status_filter }}{% endif %}
+                                        {% if search_field %}&search_field={{ search_field }}{% endif %}
+                                        {% if search_query %}&search_query={{ search_query }}{% endif %}
+                                        {% if sort_by %}&sort_by={{ sort_by }}{% endif %}
+                                        {% if sort_order %}&sort_order={{ sort_order }}{% endif %}">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Add Job Modal -->
+<div class="modal fade" id="addJobModal" tabindex="-1" aria-labelledby="addJobModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="/dashboard/stores/{{ store_name }}/add-job">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addJobModalLabel">Add New Job</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="priority" class="form-label">Priority</label>
+                        <input type="number" class="form-control" id="priority" name="priority" value="0">
+                        <div class="form-text">Higher value means higher priority</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="payload" class="form-label">Payload (JSON)</label>
+                        <textarea class="form-control" id="payload" name="payload" rows="10" required></textarea>
+                        <div class="form-text">Enter valid JSON or a simple string</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Job</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Handle select all checkbox
+    document.getElementById('selectAll').addEventListener('change', function() {
+        var isChecked = this.checked;
+        document.querySelectorAll('.job-checkbox').forEach(function(checkbox) {
+            checkbox.checked = isChecked;
+        });
+        updateBulkActionButton();
+    });
+    
+    // Update bulk action button state
+    document.querySelectorAll('.job-checkbox').forEach(function(checkbox) {
+        checkbox.addEventListener('change', updateBulkActionButton);
+    });
+    
+    function updateBulkActionButton() {
+        var checkedBoxes = document.querySelectorAll('.job-checkbox:checked');
+        document.getElementById('bulkActionButton').disabled = checkedBoxes.length === 0;
+    }
+    
+    // Confirm bulk delete
+    document.getElementById('bulkActionForm').addEventListener('submit', function(e) {
+        var action = document.querySelector('select[name="action"]').value;
+        if (action === 'delete') {
+            if (!confirm('Are you sure you want to delete all selected jobs? This action cannot be undone.')) {
+                e.preventDefault();
+            }
+        }
+    });
+    
+    // Show JSON hint for payload search
+    document.getElementById('search_field').addEventListener('change', function() {
+        var payloadHint = document.getElementById('payload-hint');
+        if (this.value === 'payload') {
+            payloadHint.style.display = 'inline';
+            var searchQueryInput = document.getElementById('search_query');
+            
+            // Provide a placeholder example for JSON payload search
+            if (!searchQueryInput.value) {
+                searchQueryInput.placeholder = '{"key":"value"} or simple text';
+            }
+        } else {
+            payloadHint.style.display = 'none';
+            document.getElementById('search_query').placeholder = '';
+        }
+    });
+    
+    // Trigger the change event on page load to set the initial state
+    var searchFieldSelect = document.getElementById('search_field');
+    if (searchFieldSelect.value === 'payload') {
+        document.getElementById('payload-hint').style.display = 'inline';
+    }
+</script>
+{% endblock %} 

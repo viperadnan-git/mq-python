@@ -1,0 +1,71 @@
+[project]
+name = "mq-python"
+version = "0.0.1"
+description = "An extensible and scalable MongoDB-based job queue system for Python"
+readme = "README.md"
+requires-python = ">=3.11"
+license-files = ["LICENSE"]
+authors = [{ name = "Adnan Ahmad", email = "viperadnan@gmail.com" }]
+maintainers = [{ name = "Adnan Ahmad", email = "viperadnan@gmail.com" }]
+keywords = [
+    "mongodb",
+    "queue",
+    "job",
+    "jobs",
+    "scheduler",
+    "background",
+    "task",
+    "worker",
+    "threading",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Utilities",
+]
+
+# dependencies
+dependencies = [
+    "apscheduler>=3.11.0",
+    "pydantic>=2.11.4",
+    "pydantic-extra-types>=2.10.4",
+    "pydantic-settings>=2.9.1",
+    "pymongo>=4.12.1",
+]
+
+[project.optional-dependencies]
+fastapi = [
+    "fastapi>=0.115.12",
+    "jinja2>=3.1.6",
+    "python-multipart>=0.0.20",
+    "uvicorn>=0.34.2",
+]
+
+[dependency-groups]
+dev = ["autoflake>=2.3.1", "black>=25.1.0", "isort>=6.0.1"]
+
+# urls
+[project.urls]
+"Homepage" = "https://github.com/viperadnan-git/mq-python#readme"
+"Bug Tracker" = "https://github.com/viperadnan-git/mq-python/issues"
+"Source Code" = "https://github.com/viperadnan-git/mq-python"
+"Documentation" = "https://github.com/viperadnan-git/mq-python#readme"
+
+# build system
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["mq", "mq.*"]
+
+# tools setup
+[tool.black]
+target-version = ["py311"]
+
+[tool.isort]
+profile = "black"

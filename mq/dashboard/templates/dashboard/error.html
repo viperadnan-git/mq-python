@@ -1,0 +1,25 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}MQ Dashboard - Error{% endblock %}
+
+{% block content %}
+<div class="col-12">
+    <div class="card mb-4">
+        <div class="card-header bg-danger text-white">
+            <h5 class="mb-0">Error</h5>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-danger" role="alert">
+                <h4 class="alert-heading">An error occurred!</h4>
+                <p>{{ error_message }}</p>
+                <hr>
+                <p class="mb-0">
+                    <a href="{{ back_url }}" class="btn btn-outline-primary">
+                        <i class="fas fa-arrow-left"></i> Go Back
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
