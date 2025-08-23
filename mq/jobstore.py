@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -22,6 +23,7 @@ from mq.constants import (
     FIELD_WORKER_INFO,
 )
 from mq.enum import JobStatus
+from mq.models.async_worker import AsyncWorker
 from mq.models.job import Job
 from mq.models.retry import Retry
 from mq.utils import query_timer
@@ -482,6 +484,148 @@ class JobStore(_MongoQueue):
                 result[status.lower()] = count
 
         return result
+
+    async def run_jobs_async(
+        self,
+        func: Callable,
+        max_workers: int = 1,
+        poll_interval: int = 1,
+        stop_event: Optional[asyncio.Event] = None,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
+    ):
+        """
+        Run jobs asynchronously from this specific job store.
+        Supports both async and sync job functions.
+
+        Args:
+            func: Async or sync function to process jobs
+            max_workers: Maximum number of concurrent workers
+            poll_interval: Time in seconds between polling for new jobs
+            stop_event: Optional asyncio.Event to signal when to stop processing
+            loop: Optional event loop to use (defaults to current running loop)
+        """
+        logger.info(
+            f"Running async jobs from {self.store_name} store with {max_workers} workers, "
+            f"polling every {poll_interval} seconds"
+        )
+
+        # Get the event loop if not provided
+        if loop is None:
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                raise RuntimeError(
+                    "No running event loop found. Either call this from within an async context "
+                    "or provide a loop parameter."
+                )
+
+        # Track active tasks
+        tasks = set()
+
+        # Use exponential backoff for polling when no jobs are found
+        base_poll_interval = poll_interval
+        current_poll_interval = base_poll_interval
+        max_poll_interval = 10
+
+        try:
+            while True:
+                # Check if we should stop
+                if stop_event and stop_event.is_set():
+                    logger.info(f"Stop event triggered for {self.store_name} store")
+                    break
+
+                # Clean up completed tasks
+                if tasks:
+                    done, _ = await asyncio.wait(
+                        tasks, timeout=0.1, return_when=asyncio.FIRST_COMPLETED
+                    )
+
+                    # Remove completed tasks
+                    for task in done:
+                        tasks.discard(task)
+                        try:
+                            # Get the result to see if there were any exceptions
+                            await task
+                        except Exception as e:
+                            logger.error(f"Task failed with error: {e}")
+
+                # Try to acquire new jobs if we have space
+                jobs_to_acquire = max_workers - len(tasks)
+
+                if jobs_to_acquire > 0:
+                    acquired_jobs = 0
+
+                    # Try to acquire jobs in batches for efficiency
+                    for _ in range(min(jobs_to_acquire, 10)):
+                        worker_id = str(uuid4())
+                        job = self.acquire_job(worker_id)
+
+                        if job:
+                            # Create async worker
+                            worker = AsyncWorker(job=job, func=func)
+                            worker._set_client(self._worker_store)
+
+                            # Create and add task using the provided loop
+                            task = loop.create_task(worker._run())
+                            tasks.add(task)
+                            acquired_jobs += 1
+
+                            logger.debug(
+                                f"Started async worker {worker.id} to process job {job.id} "
+                                f"from {self.store_name} store"
+                            )
+                        else:
+                            # No more jobs available right now
+                            break
+
+                    if acquired_jobs > 0:
+                        # Reset polling interval when jobs are found
+                        current_poll_interval = base_poll_interval
+                    else:
+                        # Use exponential backoff when no jobs are found
+                        current_poll_interval = min(
+                            current_poll_interval * 1.5, max_poll_interval
+                        )
+                        await asyncio.sleep(current_poll_interval)
+                else:
+                    # If all workers are busy, use a short sleep
+                    await asyncio.sleep(0.1)
+
+        except asyncio.CancelledError:
+            logger.info(
+                f"Async job pool for {self.store_name} store cancelled, "
+                f"waiting for {len(tasks)} tasks to complete"
+            )
+            # Wait for all tasks to complete
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+            raise
+        except KeyboardInterrupt:
+            logger.info(
+                f"Keyboard interrupt received, stopping async job pool for {self.store_name} store"
+            )
+            # Cancel all tasks
+            for task in tasks:
+                task.cancel()
+            # Wait for all tasks to complete
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+            raise
+        except Exception as e:
+            logger.exception(
+                f"Error in async job pool for {self.store_name} store: {str(e)}"
+            )
+            # Cancel all tasks on error
+            for task in tasks:
+                task.cancel()
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+            raise
+        finally:
+            # Ensure all tasks are complete before returning
+            if tasks:
+                logger.info(f"Waiting for {len(tasks)} remaining tasks to complete")
+                await asyncio.gather(*tasks, return_exceptions=True)
 
     def __repr__(self) -> str:
         return f"<JobStore name={self.store_name} max_capacity={self.max_capacity}>"

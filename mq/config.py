@@ -30,7 +30,7 @@ class Config(BaseSettings):
     dashboard_username: str = "admin"
     dashboard_password: str = "admin"
 
-    model_config = SettingsConfigDict(env_prefix="MQ_", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="MQ_", extra="ignore")
 
 
 config = Config()

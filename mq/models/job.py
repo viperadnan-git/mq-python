@@ -8,13 +8,13 @@ from pydantic_extra_types.mongo_object_id import MongoObjectId
 
 from mq.config import config
 from mq.enum import JobStatus
-from mq.models.base import BaseMonogoModel
+from mq.models.base import BaseMongoModel
 from mq.models.retry import Retry
 
 logger = logging.getLogger(__name__)
 
 
-class Job(BaseMonogoModel):
+class Job(BaseMongoModel):
     id: MongoObjectId = Field(alias="_id", default_factory=lambda: ObjectId())
     payload: Dict[str, Any] | Any
     priority: int = 0

@@ -12,9 +12,11 @@ git diff --name-only --cached | while read -r file; do
     # Check if extension exactly matches one in INCLUDE_EXTENSIONS
     if echo "$INCLUDE_EXTENSIONS" | tr ',' '\n' | grep -Fx "$extension" > /dev/null; then
       echo "Formatting $file"
-      autoflake --in-place --remove-all-unused-imports "$file"
-      black "$file"
-      isort "$file"
+      uvx autoflake --in-place --remove-all-unused-imports "$file"
+      uvx black "$file"
+      uvx isort "$file"
     fi
   fi
 done
+
+git update-index --again

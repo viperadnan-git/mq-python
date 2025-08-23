@@ -5,7 +5,7 @@ from pydantic_extra_types.mongo_object_id import MongoObjectId
 from pymongo.collection import Collection
 
 
-class BaseMonogoModel(BaseModel):
+class BaseMongoModel(BaseModel):
     _client: ClassVar[Collection]
     _id_field: ClassVar[str] = "id"
 

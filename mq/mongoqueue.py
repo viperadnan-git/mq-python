@@ -1,9 +1,7 @@
 import logging
-import os
 import time
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, List, Optional, Type
+from typing import Any, List, Optional, Type
 
 from bson import ObjectId
 from pymongo import MongoClient, ReadPreference, WriteConcern
@@ -14,7 +12,7 @@ from mq.base import codec_options
 from mq.config import config
 from mq.constants import FIELD_ID, FIELD_STATUS, FIELD_STORE_NAME
 from mq.enum import JobStatus
-from mq.job_store import JobStore
+from mq.jobstore import JobStore
 from mq.lib.scheduler import scheduler
 from mq.models.job import Job
 from mq.models.worker import Worker
@@ -309,109 +307,6 @@ class MongoQueue(JobStore):
                 "workers": {"total": 0},
                 "stores": {},
             }
-
-    def run_all_job_stores(
-        self, job_func: Callable, max_workers_per_store: int = 1, poll_interval: int = 1
-    ):
-        """
-        Run jobs from all job stores in parallel with optimized resource allocation.
-        """
-        # Get all job stores
-        store_names = self.list_job_stores()
-        total_stores = len(store_names) + 1  # +1 for current store
-
-        # Calculate appropriate worker pool size based on number of stores
-        # Avoid creating too many threads which could overwhelm the system
-        pool_size = min(
-            total_stores * 2,  # At least 2 threads per store for management
-            os.cpu_count() * 4 if os.cpu_count() else 8,  # Or 4x CPU cores
-        )
-
-        logger.info(
-            f"Starting job processing for {total_stores} stores with thread pool size {pool_size}"
-        )
-
-        # Create a worker pool for each job store
-        with ThreadPoolExecutor(max_workers=pool_size) as executor:
-            # Start a worker for the current store
-            main_queue_future = executor.submit(
-                self.run_jobs, job_func, max_workers_per_store, poll_interval
-            )
-
-            # Start workers for each job store
-            store_futures = {}
-            for store_name in store_names:
-                # Skip the current store since we already started it
-                if store_name == self.store_name:
-                    continue
-
-                job_store = self.get_job_store(store_name)
-                future = executor.submit(
-                    job_store.run_jobs, job_func, max_workers_per_store, poll_interval
-                )
-                store_futures[future] = store_name
-
-            # Setup for monitoring thread health
-            monitor_interval = 30  # Check every 30 seconds
-            last_monitor_time = time.time()
-
-            # Wait for completion or handle interrupts
-            try:
-                while not main_queue_future.done():
-                    # Sleep briefly to avoid consuming CPU
-                    time.sleep(0.1)
-
-                    # Periodically check the health of all futures
-                    current_time = time.time()
-                    if current_time - last_monitor_time > monitor_interval:
-                        last_monitor_time = current_time
-                        logger.debug("Monitoring worker threads...")
-
-                        # Check store futures
-                        for future, store_name in list(store_futures.items()):
-                            if future.done():
-                                try:
-                                    # Check if the future raised an exception
-                                    future.result()
-                                except Exception as e:
-                                    logger.error(
-                                        f"Worker for store '{store_name}' failed: {e}"
-                                    )
-                                    # Restart the worker
-                                    logger.info(
-                                        f"Restarting worker for store '{store_name}'"
-                                    )
-                                    job_store = self.get_job_store(store_name)
-                                    new_future = executor.submit(
-                                        job_store.run_jobs,
-                                        job_func,
-                                        max_workers_per_store,
-                                        poll_interval,
-                                    )
-                                    store_futures[new_future] = store_name
-                                    # Remove the old future
-                                    store_futures.pop(future)
-
-                        # Check main queue future
-                        if main_queue_future.done():
-                            try:
-                                main_queue_future.result()
-                            except Exception as e:
-                                logger.error(f"Current store worker failed: {e}")
-                                # Restart the main queue worker
-                                logger.info("Restarting current store worker")
-                                main_queue_future = executor.submit(
-                                    self.run_jobs,
-                                    job_func,
-                                    max_workers_per_store,
-                                    poll_interval,
-                                )
-            except KeyboardInterrupt:
-                logger.info("Keyboard interrupt received, stopping all job stores")
-                # Cancel all futures
-                main_queue_future.cancel()
-                for future in store_futures:
-                    future.cancel()
 
     @query_timer
     def reset_job(self, job_id: str):

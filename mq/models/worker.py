@@ -7,13 +7,13 @@ from pydantic import Field
 
 from mq.lib.heartbeat import Heartbeat
 from mq.lib.scheduler import scheduler
-from mq.models.base import BaseMonogoModel
+from mq.models.base import BaseMongoModel
 from mq.models.job import Job
 
 logger = logging.getLogger(__name__)
 
 
-class Worker(BaseMonogoModel):
+class Worker(BaseMongoModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     func: Callable
     job: Job
