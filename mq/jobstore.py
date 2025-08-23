@@ -629,3 +629,9 @@ class JobStore(_MongoQueue):
 
     def __repr__(self) -> str:
         return f"<JobStore name={self.store_name} max_capacity={self.max_capacity}>"
+
+    def get_job(self, job_id: str | ObjectId) -> Optional[Job]:
+        job = self._job_store.find_one({FIELD_ID: job_id})
+        if job:
+            return Job(**job)
+        return None
