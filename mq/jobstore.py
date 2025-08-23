@@ -85,7 +85,7 @@ class JobStore(_MongoQueue):
                 )
 
         return self._job_class.create(
-            id=job_id,
+            _id=job_id,
             payload=payload,
             retry=Retry.get_default(),
             priority=priority,

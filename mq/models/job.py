@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class Job(BaseMongoModel):
-    id: MongoObjectId = Field(alias="_id", default_factory=lambda: ObjectId())
+    id: MongoObjectId | str = Field(alias="_id", default_factory=lambda: ObjectId())
     payload: Dict[str, Any] | Any
     priority: int = 0
     retry: Optional[Retry] = None
