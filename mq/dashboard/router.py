@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from mq.enum import JobStatus
-from mq.mongo_queue import MongoQueue
+from mq.mongoqueue import MongoQueue
 
 # Create a router
 router = APIRouter(include_in_schema=False)
@@ -322,7 +322,7 @@ def init_mq_dashboard(app: FastAPI, mq_instance: Optional[MongoQueue] = None, **
     Example:
     ```python
         from fastapi import FastAPI
-        from mq.mongo_queue import MongoQueue
+        from mq.mongoqueue import MongoQueue
         from mq.dashboard.router import init_mq_dashboard
 
         app = FastAPI()

@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from mq.dashboard.router import init_mq_dashboard
-from mq.mongo_queue import MongoQueue
+from mq.mongoqueue import MongoQueue
 
 
 def create_app():
