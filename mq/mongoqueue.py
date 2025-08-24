@@ -67,6 +67,7 @@ class MongoQueue(JobStore):
         self._store_stats_cache_time = 0
 
         if auto_repair:
+            logger.info("Starting auto-repair")
             self.start_auto_repair()
 
     def get_job_store(

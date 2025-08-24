@@ -332,7 +332,9 @@ class JobStore(_MongoQueue):
                             job = self.acquire_job(worker_id)
 
                             if job:
-                                worker = self._worker_class(job=job, func=job_func)
+                                worker = self._worker_class(
+                                    id=worker_id, job=job, func=job_func
+                                )
                                 future = executor.submit(worker._run)
                                 futures[future] = job
                                 active_jobs += 1
@@ -562,7 +564,7 @@ class JobStore(_MongoQueue):
 
                         if job:
                             # Create async worker
-                            worker = AsyncWorker(job=job, func=func)
+                            worker = AsyncWorker(id=worker_id, job=job, func=func)
                             worker._set_client(self._worker_store)
 
                             # Create and add task using the provided loop
