@@ -53,7 +53,7 @@
                                 <div class="card-body text-center">
                                     <h5 class="card-title">{{ status_counts.pending }}</h5>
                                     <p class="card-text">
-                                        <a href="/dashboard/stores/{{ store_name }}?status=PENDING" class="text-dark stretched-link">Pending</a>
+                                        <a href="{{ request.url_for('store_detail', store_name=store_name) }}?status=PENDING" class="text-dark stretched-link">Pending</a>
                                     </p>
                                 </div>
                             </div>
@@ -63,7 +63,7 @@
                                 <div class="card-body text-center">
                                     <h5 class="card-title">{{ status_counts.processing }}</h5>
                                     <p class="card-text">
-                                        <a href="/dashboard/stores/{{ store_name }}?status=PROCESSING" class="text-white stretched-link">Processing</a>
+                                        <a href="{{ request.url_for('store_detail', store_name=store_name) }}?status=PROCESSING" class="text-white stretched-link">Processing</a>
                                     </p>
                                 </div>
                             </div>
@@ -73,7 +73,7 @@
                                 <div class="card-body text-center">
                                     <h5 class="card-title">{{ status_counts.completed }}</h5>
                                     <p class="card-text">
-                                        <a href="/dashboard/stores/{{ store_name }}?status=COMPLETED" class="text-white stretched-link">Completed</a>
+                                        <a href="{{ request.url_for('store_detail', store_name=store_name) }}?status=COMPLETED" class="text-white stretched-link">Completed</a>
                                     </p>
                                 </div>
                             </div>
@@ -83,7 +83,7 @@
                                 <div class="card-body text-center">
                                     <h5 class="card-title">{{ status_counts.failed }}</h5>
                                     <p class="card-text">
-                                        <a href="/dashboard/stores/{{ store_name }}?status=FAILED" class="text-white stretched-link">Failed</a>
+                                        <a href="{{ request.url_for('store_detail', store_name=store_name) }}?status=FAILED" class="text-white stretched-link">Failed</a>
                                     </p>
                                 </div>
                             </div>
@@ -95,7 +95,7 @@
             <!-- Search and filters -->
             <div class="row mb-4">
                 <div class="col-md-12">
-                    <form method="GET" action="/dashboard/stores/{{ store_name }}" class="mb-3">
+                    <form method="GET" action="{{ request.url_for('store_detail', store_name=store_name) }}" class="mb-3">
                         <div class="row g-3 align-items-end">
                             <div class="col-md-2">
                                 <label for="status" class="form-label">Status</label>
@@ -160,7 +160,7 @@
                         
                         {% if status_filter or search_field or search_query or sort_by or sort_order != 'desc' %}
                             <div class="mt-2">
-                                <a href="/dashboard/stores/{{ store_name }}" class="btn btn-outline-secondary">
+                                <a href="{{ request.url_for('store_detail', store_name=store_name) }}" class="btn btn-outline-secondary">
                                     <i class="fas fa-times"></i> Clear Filters
                                 </a>
                             </div>
@@ -193,7 +193,7 @@
                                         <input type="checkbox" name="job_ids" value="{{ job._id }}" class="form-check-input job-checkbox" form="bulkActionForm">
                                     </td>
                                     <td>
-                                        <a href="/dashboard/jobs/{{ job._id }}" class="text-decoration-none">
+                                        <a href="{{ request.url_for('job_detail', job_id=job._id) }}" class="text-decoration-none">
                                             {{ job._id }}
                                         </a>
                                     </td>
@@ -218,12 +218,12 @@
                                     <td>
                                         <div class="d-flex gap-2">
                                             <!-- View button as a separate button -->
-                                            <a href="/dashboard/jobs/{{ job._id }}" class="btn btn-sm btn-info text-white" data-bs-toggle="tooltip" title="View">
+                                            <a href="{{ request.url_for('job_detail', job_id=job._id) }}" class="btn btn-sm btn-info text-white" data-bs-toggle="tooltip" title="View">
                                                 <i class="fas fa-eye"></i>
                                             </a>
                                             
                                             <!-- Other actions as a button group -->
-                                            <form method="POST" action="/dashboard/jobs/{{ job._id }}/action" class="d-inline">
+                                            <form method="POST" action="{{ request.url_for('job_action', job_id=job._id) }}" class="d-inline">
                                                 <input type="hidden" name="store_name" value="{{ store_name }}">
                                                 <div class="btn-group btn-group-sm">
                                                     <button type="submit" name="action" value="run" class="btn btn-primary" data-bs-toggle="tooltip" title="Run Now">
@@ -256,7 +256,7 @@
             <!-- Bulk actions in a separate form -->
             {% if jobs %}
                 <div class="d-flex justify-content-between mb-3">
-                    <form id="bulkActionForm" method="POST" action="/dashboard/jobs/bulk-action">
+                    <form id="bulkActionForm" method="POST" action="{{ request.url_for('bulk_job_action') }}">
                         <input type="hidden" name="store_name" value="{{ store_name }}">
                         <div class="btn-group">
                             <select name="action" class="form-select me-2" style="max-width: 150px;" required>
@@ -278,7 +278,7 @@
                         <nav aria-label="Page navigation">
                             <ul class="pagination">
                                 <li class="page-item {% if page == 1 %}disabled{% endif %}">
-                                    <a class="page-link" href="/dashboard/stores/{{ store_name }}?page={{ page - 1 }}
+                                    <a class="page-link" href="{{ request.url_for('store_detail', store_name=store_name) }}?page={{ page - 1 }}
                                         {% if status_filter %}&status={{ status_filter }}{% endif %}
                                         {% if search_field %}&search_field={{ search_field }}{% endif %}
                                         {% if search_query %}&search_query={{ search_query }}{% endif %}
@@ -290,7 +290,7 @@
                                 
                                 {% for p in range([page - 2, 1] | max, [page + 3, total_pages + 1] | min) %}
                                     <li class="page-item {% if p == page %}active{% endif %}">
-                                        <a class="page-link" href="/dashboard/stores/{{ store_name }}?page={{ p }}
+                                        <a class="page-link" href="{{ request.url_for('store_detail', store_name=store_name) }}?page={{ p }}
                                             {% if status_filter %}&status={{ status_filter }}{% endif %}
                                             {% if search_field %}&search_field={{ search_field }}{% endif %}
                                             {% if search_query %}&search_query={{ search_query }}{% endif %}
@@ -302,7 +302,7 @@
                                 {% endfor %}
                                 
                                 <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-                                    <a class="page-link" href="/dashboard/stores/{{ store_name }}?page={{ page + 1 }}
+                                    <a class="page-link" href="{{ request.url_for('store_detail', store_name=store_name) }}?page={{ page + 1 }}
                                         {% if status_filter %}&status={{ status_filter }}{% endif %}
                                         {% if search_field %}&search_field={{ search_field }}{% endif %}
                                         {% if search_query %}&search_query={{ search_query }}{% endif %}
@@ -324,7 +324,7 @@
 <div class="modal fade" id="addJobModal" tabindex="-1" aria-labelledby="addJobModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form method="POST" action="/dashboard/stores/{{ store_name }}/add-job">
+            <form method="POST" action="{{ request.url_for('add_job', store_name=store_name) }}">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addJobModalLabel">Add New Job</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>

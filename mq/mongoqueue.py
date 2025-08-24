@@ -137,7 +137,7 @@ class MongoQueue(JobStore):
             try:
                 job_id = ObjectId(job_id)
             except Exception:
-                return None
+                pass
 
         # Use projection to only fetch the fields we need
         job = self._job_store.find_one({FIELD_ID: job_id})

@@ -19,7 +19,7 @@
                             {% if store_names %}
                                 <div class="list-group">
                                     {% for store_name in store_names %}
-                                        <a href="/dashboard/stores/{{ store_name }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                        <a href="{{ request.url_for('store_detail', store_name=store_name) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
                                             {{ store_name }}
                                             {% if stats.stores and store_name in stats.stores %}
                                                 <span class="badge bg-primary rounded-pill">{{ stats.stores[store_name] }} jobs</span>

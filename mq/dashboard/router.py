@@ -45,7 +45,12 @@ async def dashboard_home(request: Request):
     stats = queue.stats()
     return templates.TemplateResponse(
         "dashboard/index.html",
-        {"request": request, "store_names": store_names, "stats": stats},
+        {
+            "request": request,
+            "store_names": store_names,
+            "stats": stats,
+            "dashboard_prefix": request.scope.get("path", "/").rstrip("/"),
+        },
     )
 
 
@@ -203,8 +208,10 @@ async def job_action(
 
     # Redirect back to store page if provided, otherwise to dashboard home
     if store_name:
-        return RedirectResponse(f"/dashboard/stores/{store_name}", status_code=303)
-    return RedirectResponse("/dashboard", status_code=303)
+        return RedirectResponse(
+            request.url_for("store_detail", store_name=store_name), status_code=303
+        )
+    return RedirectResponse(request.url_for("dashboard_home"), status_code=303)
 
 
 @router.post("/jobs/bulk-action")
@@ -224,7 +231,9 @@ async def bulk_job_action(
         elif action == "delete":
             queue.delete_job(job_id)
 
-    return RedirectResponse(f"/dashboard/stores/{store_name}", status_code=303)
+    return RedirectResponse(
+        request.url_for("store_detail", store_name=store_name), status_code=303
+    )
 
 
 @router.post("/stores/{store_name}/add-job")
@@ -244,7 +253,7 @@ async def add_job(
             {
                 "request": request,
                 "error_message": "Invalid JSON payload. Please provide a valid JSON object.",
-                "back_url": f"/dashboard/stores/{store_name}",
+                "back_url": str(request.url_for("store_detail", store_name=store_name)),
             },
             status_code=400,
         )
@@ -252,7 +261,9 @@ async def add_job(
     # Add the job with validated JSON payload
     job_store.put(payload=payload_dict, priority=priority)
 
-    return RedirectResponse(f"/dashboard/stores/{store_name}", status_code=303)
+    return RedirectResponse(
+        request.url_for("store_detail", store_name=store_name), status_code=303
+    )
 
 
 @router.post("/jobs/{job_id}/update")
@@ -280,7 +291,9 @@ async def update_job(
         # Use the Job class update_one method
         queue._job_class.update_one(job_id, **updates)
 
-        return RedirectResponse(f"/dashboard/jobs/{job_id}", status_code=303)
+        return RedirectResponse(
+            request.url_for("job_detail", job_id=job_id), status_code=303
+        )
 
     except json.JSONDecodeError:
         # Return error if not valid JSON
@@ -289,7 +302,7 @@ async def update_job(
             {
                 "request": request,
                 "error_message": "Invalid JSON payload. Please provide a valid JSON object.",
-                "back_url": f"/dashboard/jobs/{job_id}",
+                "back_url": str(request.url_for("job_detail", job_id=job_id)),
             },
             status_code=400,
         )
@@ -300,7 +313,7 @@ async def update_job(
             {
                 "request": request,
                 "error_message": f"Error updating job: {str(e)}",
-                "back_url": f"/dashboard/jobs/{job_id}",
+                "back_url": str(request.url_for("job_detail", job_id=job_id)),
             },
             status_code=500,
         )

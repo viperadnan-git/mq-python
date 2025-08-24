@@ -8,7 +8,7 @@
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Job Details</h5>
             <div>
-                <a href="/dashboard/stores/{{ job.store_name }}" class="btn btn-outline-secondary">
+                <a href="{{ request.url_for('store_detail', store_name=job.store_name) }}" class="btn btn-outline-secondary">
                     <i class="fas fa-arrow-left"></i> Back to Store
                 </a>
             </div>
@@ -95,7 +95,7 @@
                             <h6 class="mb-0">Actions</h6>
                         </div>
                         <div class="card-body">
-                            <form method="POST" action="/dashboard/jobs/{{ job._id }}/action">
+                            <form method="POST" action="{{ request.url_for('job_action', job_id=job._id) }}">
                                 <input type="hidden" name="store_name" value="{{ job.store_name }}">
                                 <div class="d-grid gap-2">
                                     <button type="submit" name="action" value="run" class="btn btn-primary">
@@ -128,6 +128,18 @@
                 </div>
             </div>
             
+            <!-- Traceback display if job failed -->
+            {% if job.status == 'FAILED' and job.traceback %}
+                <div class="card mb-4">
+                    <div class="card-header bg-danger text-white">
+                        <h6 class="mb-0">Traceback</h6>
+                    </div>
+                    <div class="card-body">
+                        <pre class="text-danger mb-0">{{ job.traceback }}</pre>
+                    </div>
+                </div>
+            {% endif %}
+            
             <!-- Error display if job failed -->
             {% if job.status == 'FAILED' and job.error %}
                 <div class="card mb-4">
@@ -159,7 +171,7 @@
 <div class="modal fade" id="editJobModal" tabindex="-1" aria-labelledby="editJobModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form method="POST" action="/dashboard/jobs/{{ job._id }}/update">
+            <form method="POST" action="{{ request.url_for('update_job', job_id=job._id) }}">
                 <input type="hidden" name="store_name" value="{{ job.store_name }}">
                 <div class="modal-header">
                     <h5 class="modal-title" id="editJobModalLabel">Edit Job</h5>
